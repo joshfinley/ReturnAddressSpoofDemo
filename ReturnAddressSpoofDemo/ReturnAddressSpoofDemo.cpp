@@ -9,12 +9,12 @@
 */
 
 PIMAGE_SECTION_HEADER GetTextSectionHeader(HMODULE hModule) {
-    PIMAGE_DOS_HEADER DosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
+    PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(hModule);
     if (DosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
         return NULL;
     }
 
-    PIMAGE_NT_HEADERS NtHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(
+    PIMAGE_NT_HEADERS NtHeaders = (PIMAGE_NT_HEADERS)(
         reinterpret_cast<PBYTE>(hModule) + DosHeader->e_lfanew);
     if (NtHeaders->Signature != IMAGE_NT_SIGNATURE) {
         return NULL;
@@ -51,7 +51,7 @@ PVOID FindByteSequence(PBYTE Start, SIZE_T Length, PBYTE Sequence, SIZE_T Sequen
     return NULL;
 }
 
-PVOID FindGadget(std::string InModuleName, PBYTE Gadget) {
+PVOID FindGadget(std::string InModuleName, PBYTE Gadget, SIZE_T GadgetLength) {
     HMODULE ModBase = GetModuleHandleA(InModuleName.c_str());
     PIMAGE_SECTION_HEADER CodeHeader = GetTextSectionHeader(ModBase);
 
@@ -62,7 +62,7 @@ PVOID FindGadget(std::string InModuleName, PBYTE Gadget) {
 }
 
 /*
-        META CALL
+        RETURN ADDRESS SPOOF CALL
 */
 
 typedef struct {
@@ -80,7 +80,7 @@ PVOID SpoofRetAddr(PVOID Function, PVOID A, PVOID B, PVOID C, PVOID D, PVOID E, 
         PVOID JmpTrampoline; // Address where the code is `jmp rbx`
         BYTE JopGadget[2] = { 0xff, 0x23 };
 
-        JmpTrampoline = FindGadget("kernel32", JopGadget);
+        JmpTrampoline = FindGadget("kernel32", JopGadget, 2);
         if (JmpTrampoline != NULL)
         {
             PRM Param = { JmpTrampoline, Function, NULL };
@@ -91,19 +91,18 @@ PVOID SpoofRetAddr(PVOID Function, PVOID A, PVOID B, PVOID C, PVOID D, PVOID E, 
     return NULL;
 };
 
-DWORD WINAPI MyThreadFunction(LPVOID lpParam) {
-    std::cout << "Hello from the thread!\n";
-    return 0;
-}
 
+/*
+        ENTRY POINT
+*/
 int main()
 {
     char Text[14] = "Hello World!";
     char Caption[5] = "Msg";
 
     SpoofRetAddr(
-        GetProcAddress(GetModuleHandleA("user32"),
-        "MessageBoxA"), NULL, Text, Caption, MB_OK, NULL, NULL, NULL, NULL);
+        GetProcAddress(GetModuleHandleA("user32"), "MessageBoxA"), 
+        NULL, Text, Caption, MB_OK, NULL, NULL, NULL, NULL);
 
     return 0;
 }
