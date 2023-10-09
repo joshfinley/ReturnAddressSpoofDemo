@@ -95,6 +95,7 @@ PVOID SpoofRetAddr(PVOID Function, PVOID A, PVOID B, PVOID C, PVOID D, PVOID E, 
 /*
         ENTRY POINT
 */
+
 int main()
 {
     char Text[14] = "Hello World!";
